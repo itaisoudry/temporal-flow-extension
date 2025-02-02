@@ -17,10 +17,13 @@ function addButtonsToWorkflows() {
       return;
     }
 
-    // Get the workflow ID from cell 4 (index 3) which contains the workflow name link
+    // Find the cell containing the workflow ID link
     const cells = row.querySelectorAll("td.workflows-summary-table-body-cell");
     const workflowLink = cells[4]?.querySelector("a");
-    const workflowId = workflowLink?.textContent?.trim();
+    const href = workflowLink?.getAttribute("href");
+
+    // Extract workflow ID from href using regex
+    const workflowId = href?.match(/\/workflows\/([^/]+)/)?.[1];
 
     console.log(`Row ${index} workflow ID:`, workflowId);
 
