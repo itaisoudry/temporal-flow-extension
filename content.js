@@ -174,66 +174,93 @@ function addButtonToWorkflowDetail() {
     window.open(url, "_blank");
   });
 
-  // Insert before the first tab
   const firstTab = tabList.querySelector('[role="tab"]');
   if (firstTab) {
     tabList.insertBefore(button, firstTab);
   }
 }
 
-// Update the initialization function to handle both cases
 function initializeObserver() {
   console.log("Initializing observer");
+  let waitForContentInterval = null;
+  let waitForTabListInterval = null;
 
-  // Check if we're on a workflow detail page first
-  if (window.location.pathname.includes("/workflows/")) {
-    const waitForTabList = setInterval(() => {
-      const tabList = document.querySelector('.tab-list[role="tablist"]');
-      if (tabList) {
-        clearInterval(waitForTabList);
-        addButtonToWorkflowDetail();
-      }
-    }, 1000);
-    return;
+  function cleanup() {
+    if (waitForContentInterval) clearInterval(waitForContentInterval);
+    if (waitForTabListInterval) clearInterval(waitForTabListInterval);
   }
 
-  // Original workflow list page logic
-  const waitForContent = setInterval(() => {
-    const workflowRows = document.querySelectorAll(
-      'tr[data-testid="workflows-summary-configurable-table-row"]'
-    );
-    console.log("Checking for workflow rows:", workflowRows.length);
+  function initialize() {
+    cleanup(); 
 
-    if (workflowRows.length > 0) {
-      clearInterval(waitForContent);
-      console.log("Content found, setting up observer");
-
-      // Set up the MutationObserver
-      const observer = new MutationObserver((mutations) => {
-        for (const mutation of mutations) {
-          if (mutation.addedNodes.length) {
-            console.log("Mutation detected:", mutation.type);
-            addButtonsToWorkflows();
-          }
+    // Check if we're on a workflow detail page first
+    if (window.location.pathname.includes("/workflows/")) {
+      waitForTabListInterval = setInterval(() => {
+        const tabList = document.querySelector('.tab-list[role="tablist"]');
+        if (tabList) {
+          clearInterval(waitForTabListInterval);
+          addButtonToWorkflowDetail();
         }
-      });
-
-      // Find a stable parent element to observe
-      const tableWrapper = document.querySelector(".paginated-table-wrapper");
-      if (tableWrapper) {
-        observer.observe(tableWrapper, {
-          childList: true,
-          subtree: true,
-        });
-        console.log("Observer set up on table wrapper");
-
-        // Initial run
-        addButtonsToWorkflows();
-      } else {
-        console.log("Could not find table wrapper");
-      }
+      }, 1000);
+      return;
     }
-  }, 1000);
+
+    // Original workflow list page logic
+    waitForContentInterval = setInterval(() => {
+      const workflowRows = document.querySelectorAll(
+        'tr[data-testid="workflows-summary-configurable-table-row"]'
+      );
+      console.log("Checking for workflow rows:", workflowRows.length);
+
+      if (workflowRows.length > 0) {
+        clearInterval(waitForContentInterval);
+        console.log("Content found, setting up observer");
+
+        // Set up the MutationObserver
+        const observer = new MutationObserver((mutations) => {
+          for (const mutation of mutations) {
+            if (mutation.addedNodes.length) {
+              console.log("Mutation detected:", mutation.type);
+              addButtonsToWorkflows();
+            }
+          }
+        });
+
+        // Find a stable parent element to observe
+        const tableWrapper = document.querySelector(".paginated-table-wrapper");
+        if (tableWrapper) {
+          observer.observe(tableWrapper, {
+            childList: true,
+            subtree: true,
+          });
+          console.log("Observer set up on table wrapper");
+
+          // Initial run
+          addButtonsToWorkflows();
+        } else {
+          console.log("Could not find table wrapper");
+        }
+      }
+    }, 1000);
+  }
+
+  // Initialize for the first time
+  initialize();
+
+  // Listen for URL changes
+  let lastUrl = window.location.href;
+
+  // Create an observer to watch for URL changes
+  const urlObserver = new MutationObserver(() => {
+    if (lastUrl !== window.location.href) {
+      console.log("URL changed, reinitializing");
+      lastUrl = window.location.href;
+      initialize();
+    }
+  });
+
+  // Start observing the document for URL changes
+  urlObserver.observe(document, { subtree: true, childList: true });
 }
 
 // Start the initialization
