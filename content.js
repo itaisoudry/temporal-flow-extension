@@ -1,36 +1,55 @@
 function addButtonsToWorkflows() {
   console.log("Running addButtonsToWorkflows");
 
-  // Get the current namespace from the URL
-  const namespace = window.location.pathname.split("/")[2];
-
-  // Find all workflow rows using data-testid
   const workflowRows = document.querySelectorAll(
     'tr[data-testid="workflows-summary-configurable-table-row"]'
   );
+  console.log("Found workflow rows:", workflowRows.length);
+
+  // Find header row to get column indices for Workflow ID and Run ID
+  const headers = document.querySelectorAll("th");
+  let workflowIdIndex = -1;
+  let runIdIndex = -1;
+
+  headers.forEach((header, index) => {
+    const headerText = header.textContent;
+    if (headerText === "Workflow ID") {
+      workflowIdIndex = index;
+    } else if (headerText === "Run ID") {
+      runIdIndex = index;
+    }
+  });
 
   workflowRows.forEach((row, index) => {
-    // Check if button already exists to prevent duplicates
-    if (row.querySelector(".temporal-custom-button")) {
-      return;
-    }
+    // Skip if button already exists
+    if (row.querySelector(".temporal-custom-button")) return;
 
-    // Find the cell containing the workflow ID link
-    const cells = row.querySelectorAll("td.workflows-summary-table-body-cell");
-    const workflowLink = cells[4]?.querySelector("a");
-    const href = workflowLink?.getAttribute("href");
+    const cells = row.querySelectorAll("td");
+    const workflowId = cells[workflowIdIndex]?.textContent?.trim();
+    const runId = cells[runIdIndex]?.textContent?.trim();
 
-    // Extract workflow ID from href using regex
-    const workflowId = href?.match(/\/workflows\/([^/]+)/)?.[1];
+    if (!workflowId || !runId) return;
 
-    if (workflowId) {
-      // Create button
-      const button = document.createElement("button");
-      button.className =
-        "temporal-custom-button relative flex w-fit items-center justify-center border gap-1 disabled:opacity-50 disabled:cursor-not-allowed transition-shadow focus-visible:outline-none focus-visible:border-inverse focus-visible:ring-2 whitespace-nowrap no-underline h-8 text-xs px-1.5 py-1";
+    const button = document.createElement("button");
+    button.className =
+      "temporal-custom-button relative flex w-fit items-center justify-center border gap-1 disabled:opacity-50 disabled:cursor-not-allowed transition-shadow focus-visible:outline-none focus-visible:border-inverse focus-visible:ring-2 whitespace-nowrap no-underline h-8 text-xs px-1.5 py-1";
+    button.style.cssText =
+      "margin-left: 6px; border-radius: 4px; border: 1px solid rgb(203, 213, 225); background: transparent; cursor: pointer; color: inherit; font-family: inherit; display: inline-flex; align-items: center; min-width: 45px; max-width: 70px; transition: 0.2s; padding: 0px 6px;";
 
-      // Add magnifying glass icon and text
-      button.innerHTML = `
+    const namespace = window.location.pathname.split("/")[2];
+
+    button.addEventListener("click", (e) => {
+      e.stopPropagation();
+      const url = `https://itaisoudry.github.io/temporal-flow-web/?id=${encodeURIComponent(
+        workflowId
+      )}&namespace=${encodeURIComponent(namespace)}&runID=${encodeURIComponent(
+        runId
+      )}`;
+      window.open(url, "_blank");
+    });
+
+    // Add SVG icon
+    button.innerHTML = `
         <span class="flex items-center gap-1">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
             <path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z" fill="currentColor"/>
@@ -38,59 +57,14 @@ function addButtonsToWorkflows() {
         </span>
       `;
 
-      button.style.cssText = `
-        margin-left: 6px;
-        border-radius: 4px;
-        border: 1px solid rgb(203 213 225);
-        background: transparent;
-        cursor: pointer;
-        color: inherit;
-        font-family: inherit;
-        display: inline-flex;
-        align-items: center;
-        min-width: 45px;
-        max-width: 70px;
-        transition: all 0.2s;
-        padding: 0 6px;
-      `;
-
-      // Add hover styles with a more subtle background color
-      button.addEventListener("mouseover", () => {
-        button.style.backgroundColor = "rgba(226, 232, 240, 0.6)"; // More subtle gray with some transparency
-      });
-
-      button.addEventListener("mouseout", () => {
-        button.style.backgroundColor = "transparent";
-      });
-
-      // Add click handler
-      button.addEventListener("click", (e) => {
-        e.stopPropagation();
-        const url = `https://itaisoudry.github.io/temporal-flow-web/?id=${encodeURIComponent(
-          workflowId
-        )}&namespace=${encodeURIComponent(namespace)}`;
-        window.open(url, "_blank");
-      });
-
-      // Find the target cell and its content
-      const targetCell = row.querySelector("td:nth-child(2)");
-      const buttonContainer = targetCell?.querySelector(".wrapper");
-
-      if (buttonContainer) {
-        // Create a wrapper div similar to the existing button
-        const buttonWrapper = document.createElement("div");
-        buttonWrapper.className =
-          "wrapper group relative inline-block svelte-nyff2a";
-        buttonWrapper.style.marginLeft = "4px";
-
-        buttonWrapper.appendChild(button);
-        buttonContainer.parentNode.insertBefore(
-          buttonWrapper,
-          buttonContainer.nextSibling
-        );
-      } else {
-        console.log(`Could not find button container in row ${index}`);
-      }
+    // Find the action cell (second cell) and append the button
+    const actionCell = row.querySelector("td:nth-child(2)");
+    if (actionCell) {
+      const wrapper = document.createElement("div");
+      wrapper.className = "wrapper group relative inline-block svelte-nyff2a";
+      wrapper.style.marginLeft = "4px";
+      wrapper.appendChild(button);
+      actionCell.appendChild(wrapper);
     }
   });
 }
@@ -109,9 +83,10 @@ function addButtonToWorkflowDetail() {
     return;
   }
 
-  // Extract namespace and workflow ID from URL
+  // Extract namespace, workflow ID, and run ID from URL
   const namespace = pathParts[2];
   const workflowId = pathParts[4];
+  const runId = pathParts[5] || ""; // Extract run ID if present (it's after "runs" in the path)
 
   // Check if button already exists
   if (document.querySelector(".temporal-custom-button")) {
@@ -170,7 +145,9 @@ function addButtonToWorkflowDetail() {
     e.stopPropagation();
     const url = `https://itaisoudry.github.io/temporal-flow-web/?id=${encodeURIComponent(
       workflowId
-    )}&namespace=${encodeURIComponent(namespace)}`;
+    )}&namespace=${encodeURIComponent(namespace)}&runID=${encodeURIComponent(
+      runId
+    )}`;
     window.open(url, "_blank");
   });
 
@@ -191,7 +168,7 @@ function initializeObserver() {
   }
 
   function initialize() {
-    cleanup(); 
+    cleanup();
 
     // Check if we're on a workflow detail page first
     if (window.location.pathname.includes("/workflows/")) {
